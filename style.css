@@ -64,7 +64,47 @@ body {
 input[type="file"] {
   font-size: 0.8rem;
   color: #e5e7eb;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.5);
+  background: rgba(15, 23, 42, 0.8);
+  padding: 0.25rem 0.75rem;
+  cursor: pointer;
 }
+
+/* Modern browsers */
+input[type="file"]::file-selector-button {
+  border: none;
+  border-radius: 999px;
+  padding: 0.35rem 0.9rem;
+  margin-right: 0.5rem;
+  background: linear-gradient(135deg, #38bdf8, #818cf8);
+  color: #0f172a;
+  font-weight: 600;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: filter 0.15s ease, transform 0.08s ease;
+}
+
+/* WebKit (Safari/old Chrome) */
+input[type="file"]::-webkit-file-upload-button {
+  border: none;
+  border-radius: 999px;
+  padding: 0.35rem 0.9rem;
+  margin-right: 0.5rem;
+  background: linear-gradient(135deg, #38bdf8, #818cf8);
+  color: #0f172a;
+  font-weight: 600;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: filter 0.15s ease, transform 0.08s ease;
+}
+
+input[type="file"]::file-selector-button:hover,
+input[type="file"]::-webkit-file-upload-button:hover {
+  filter: brightness(1.05);
+  transform: translateY(-1px);
+}
+
 
 select, button {
   border-radius: 999px;

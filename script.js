@@ -83,9 +83,14 @@ applyBtn.addEventListener("click", () => {
   const t1 = performance.now();
   ditherCtx.putImageData(result, 0, 0);
 
+  const psnr = computePSNR(currentImageData, result).toFixed(2);
+  const ssim = computeSSIM(currentImageData, result).toFixed(3);
+
   ditherInfo.textContent =
     `${currentImageData.width} × ${currentImageData.height}px • ` +
-    `${isGrayscale ? "Grayscale" : "RGB"} • ${methodName(method)} • ${(t1 - t0).toFixed(1)} ms`;
+    `${isGrayscale ? "Grayscale" : "RGB"} • ${methodName(method)} • ` +
+    `${(t1 - t0).toFixed(1)} ms • ` +
+    `PSNR=${psnr} • SSIM=${ssim}`;
 
   saveBtn.disabled = false;
 });
@@ -325,4 +330,97 @@ function applyColorDither(method, img) {
     case "stucki": return ditherErrorDiffColor(img, KERNELS.stucki);
     case "jjn": return ditherErrorDiffColor(img, KERNELS.jjn);
   }
+}
+
+function computePSNR(origData, dithData) {
+  let mse = 0;
+  const n = origData.data.length;
+
+  for (let i = 0; i < n; i += 4) {
+    const dr = origData.data[i]   - dithData.data[i];
+    const dg = origData.data[i+1] - dithData.data[i+1];
+    const db = origData.data[i+2] - dithData.data[i+2];
+    mse += dr*dr + dg*dg + db*db;
+  }
+
+  mse /= (n / 4 * 3); // per color channel
+
+  if (mse === 0) return 99; // identical
+  return 10 * Math.log10((255 * 255) / mse);
+}
+
+function computeSSIM(orig, dith) {
+  const w = orig.width, h = orig.height;
+  const o = orig.data, d = dith.data;
+
+  // Gaussian 11x11 kernel (sigma ≈ 1.5)
+  const K = [
+    [0.000003,0.000022,0.000105,0.000323,0.000649,0.000859,0.000649,0.000323,0.000105,0.000022,0.000003],
+    [0.000022,0.000147,0.000685,0.002113,0.004245,0.005620,0.004245,0.002113,0.000685,0.000147,0.000022],
+    [0.000105,0.000685,0.003198,0.009866,0.019818,0.026225,0.019818,0.009866,0.003198,0.000685,0.000105],
+    [0.000323,0.002113,0.009866,0.030454,0.061172,0.080891,0.061172,0.030454,0.009866,0.002113,0.000323],
+    [0.000649,0.004245,0.019818,0.061172,0.12229,0.16163,0.12229,0.061172,0.019818,0.004245,0.000649],
+    [0.000859,0.005620,0.026225,0.080891,0.16163,0.21380,0.16163,0.080891,0.026225,0.005620,0.000859],
+    [0.000649,0.004245,0.019818,0.061172,0.12229,0.16163,0.12229,0.061172,0.019818,0.004245,0.000649],
+    [0.000323,0.002113,0.009866,0.030454,0.061172,0.080891,0.061172,0.030454,0.009866,0.002113,0.000323],
+    [0.000105,0.000685,0.003198,0.009866,0.019818,0.026225,0.019818,0.009866,0.003198,0.000685,0.000105],
+    [0.000022,0.000147,0.000685,0.002113,0.004245,0.005620,0.004245,0.002113,0.000685,0.000147,0.000022],
+    [0.000003,0.000022,0.000105,0.000323,0.000649,0.000859,0.000649,0.000323,0.000105,0.000022,0.000003],
+  ];
+
+  let ssimSum = 0;
+  let count = 0;
+
+  // Per-pixel luminance grayscale
+  function lum(i) {
+    return 0.299 * i[0] + 0.587 * i[1] + 0.114 * i[2];
+  }
+
+  for (let y = 5; y < h - 5; y++) {
+    for (let x = 5; x < w - 5; x++) {
+
+      let mu1 = 0, mu2 = 0;
+
+      // compute means
+      for (let ky = -5; ky <= 5; ky++) {
+        for (let kx = -5; kx <= 5; kx++) {
+          const i = 4 * ((y + ky) * w + (x + kx));
+          const wK = K[ky+5][kx+5];
+
+          mu1 += lum([o[i], o[i+1], o[i+2]]) * wK;
+          mu2 += lum([d[i], d[i+1], d[i+2]]) * wK;
+        }
+      }
+
+      let sigma1 = 0, sigma2 = 0, sigma12 = 0;
+
+      // compute variances / covariance
+      for (let ky = -5; ky <= 5; ky++) {
+        for (let kx = -5; kx <= 5; kx++) {
+          const i = 4 * ((y + ky) * w + (x + kx));
+          const wK = K[ky+5][kx+5];
+
+          const l1 = lum([o[i], o[i+1], o[i+2]]);
+          const l2 = lum([d[i], d[i+1], d[i+2]]);
+
+          sigma1  += wK * (l1 - mu1) * (l1 - mu1);
+          sigma2  += wK * (l2 - mu2) * (l2 - mu2);
+          sigma12 += wK * (l1 - mu1) * (l2 - mu2);
+        }
+      }
+
+      const C1 = 6.5025;  // (0.01*255)^2
+      const C2 = 58.5225; // (0.03*255)^2
+      
+      const ssim =
+        ((2 * mu1 * mu2 + C1) * (2 * sigma12 + C2)) /
+        ((mu1 * mu1 + mu2 * mu2 + C1) *
+         (sigma1 + sigma2 + C2));
+
+      ssimSum += ssim;
+      count++;
+    }
+  }
+
+  return ssimSum / count;
 }

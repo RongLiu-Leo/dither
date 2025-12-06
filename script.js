@@ -10,6 +10,11 @@ const ditherCtx = ditherCanvas.getContext("2d");
 const origInfo = document.getElementById("origInfo");
 const ditherInfo = document.getElementById("ditherInfo");
 
+const saveBtn = document.getElementById("saveBtn");
+
+let originalFileName = "";
+let originalExt = "";
+
 let currentImageData = null;
 let isGrayscale = false;
 
@@ -28,6 +33,10 @@ function detectGrayscale(imageData) {
 fileInput.addEventListener("change", () => {
   const file = fileInput.files?.[0];
   if (!file) return;
+
+  // Extract name and extension
+  originalFileName = file.name.replace(/\.[^/.]+$/, "");
+  originalExt = file.name.split(".").pop();
 
   const reader = new FileReader();
   reader.onload = e => {
@@ -77,6 +86,28 @@ applyBtn.addEventListener("click", () => {
   ditherInfo.textContent =
     `${currentImageData.width} × ${currentImageData.height}px • ` +
     `${isGrayscale ? "Grayscale" : "RGB"} • ${methodName(method)} • ${(t1 - t0).toFixed(1)} ms`;
+
+  saveBtn.disabled = false;
+});
+
+// Save dithered image
+saveBtn.addEventListener("click", () => {
+  if (!currentImageData) return;
+
+  const method = methodSelect.value;
+  const ctx = ditherCanvas.getContext("2d");
+
+  // Convert canvas → blob
+  ditherCanvas.toBlob(blob => {
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${originalFileName}_${method}.${originalExt}`;
+    a.click();
+
+    URL.revokeObjectURL(url);
+  });
 });
 
 function methodName(v) {

@@ -161,7 +161,7 @@ button:disabled {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  min-height: 400px;
+  min-height: 300px;
 }
 
 .panel-header {

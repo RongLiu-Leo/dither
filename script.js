@@ -87,8 +87,7 @@ applyBtn.addEventListener("click", () => {
   const ssim = computeSSIM(currentImageData, result).toFixed(3);
 
   ditherInfo.textContent =
-    `${currentImageData.width} × ${currentImageData.height}px • ` +
-    `${isGrayscale ? "Grayscale" : "RGB"} • ${methodName(method)} • ` +
+    `${methodName(method)} • ` +
     `${(t1 - t0).toFixed(1)} ms • ` +
     `PSNR=${psnr} • SSIM=${ssim}`;
 

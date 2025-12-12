@@ -115,7 +115,7 @@ saveBtn.addEventListener("click", () => {
 });
 
 function methodName(v) {
-  return { bayer:"Bayer", fs:"Floyd–Steinberg", stucki:"Stucki", jjn:"JJN" }[v];
+  return { bayer:"Bayer", fs:"Floyd–Steinberg", stucki:"Stucki", jjn:"JJN", rong:"Rong" }[v];
 }
 
 /* ------------------------------------------------
@@ -218,6 +218,21 @@ function ditherBayerColor(img) {
    Error diffusion
 ------------------------------------------------ */
 
+// Rong-style nonlinear error shaping
+function warpError(err) {
+  if (err === 0) return 0;
+  const sign = err > 0 ? 1 : -1;
+
+  // Normalize to [0, 1] magnitude (original theory assumes error in [-0.5, 0.5])
+  let e = Math.abs(err) / 255.0;
+
+  // Rong mapping: e' = e + sin(4πe) / (4π)
+  e = e + Math.sin(4 * Math.PI * e) / (4 * Math.PI);
+
+  // Back to 0..255 scale
+  return sign * e * 255.0;
+}
+
 const KERNELS = {
   fs: {
     divisor: 16,
@@ -246,7 +261,7 @@ const KERNELS = {
   }
 };
 
-function ditherErrorDiffGray(img, kernel) {
+function ditherErrorDiffGray(img, kernel, warpError) {
   const { width, height } = img;
   const gray = imageDataToGray(img);
   const buffer = new Float32Array(gray);
@@ -256,7 +271,11 @@ function ditherErrorDiffGray(img, kernel) {
       const idx = y * width + x;
       const oldV = buffer[idx];
       const newV = oldV < 128 ? 0 : 255;
-      const err = oldV - newV;
+      let err = oldV - newV;
+
+      // Rong or other shaping
+      if (warpError) err = warpError(err);
+
       buffer[idx] = newV;
 
       for (const {dx, dy, w} of kernel.weights) {
@@ -269,7 +288,7 @@ function ditherErrorDiffGray(img, kernel) {
   return grayToImageData(buffer, width, height);
 }
 
-function ditherErrorDiffColor(img, kernel) {
+function ditherErrorDiffColor(img, kernel, warpError) {
   const { width, height, r, g, b } = imageDataToRGB(img);
   const R = new Float32Array(r);
   const G = new Float32Array(g);
@@ -282,16 +301,19 @@ function ditherErrorDiffColor(img, kernel) {
       // threshold R
       let oR = R[idx], nR = oR < 128 ? 0 : 255;
       let eR = oR - nR;
+      if (warpError) eR = warpError(eR);
       R[idx] = nR;
 
       // threshold G
       let oG = G[idx], nG = oG < 128 ? 0 : 255;
       let eG = oG - nG;
+      if (warpError) eG = warpError(eG);
       G[idx] = nG;
 
       // threshold B
       let oB = B[idx], nB = oB < 128 ? 0 : 255;
       let eB = oB - nB;
+      if (warpError) eB = warpError(eB);
       B[idx] = nB;
 
       for (const {dx, dy, w} of kernel.weights) {
@@ -319,6 +341,7 @@ function applyGrayDither(method, img) {
     case "fs": return ditherErrorDiffGray(img, KERNELS.fs);
     case "stucki": return ditherErrorDiffGray(img, KERNELS.stucki);
     case "jjn": return ditherErrorDiffGray(img, KERNELS.jjn);
+    case "rong": return ditherErrorDiffGray(img, KERNELS.jjn, warpError);
   }
 }
 
@@ -328,6 +351,7 @@ function applyColorDither(method, img) {
     case "fs": return ditherErrorDiffColor(img, KERNELS.fs);
     case "stucki": return ditherErrorDiffColor(img, KERNELS.stucki);
     case "jjn": return ditherErrorDiffColor(img, KERNELS.jjn);
+    case "rong": return ditherErrorDiffColor(img, KERNELS.jjn, warpError);
   }
 }
 

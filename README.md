@@ -11,6 +11,9 @@ A key observation is that these artifacts arise not only from the **diffusion ke
 
 ### A General Enhancement: Nonlinear Error Mapping
 
+<img width="500" height="400" alt="image" src="https://github.com/user-attachments/assets/3b000c61-d455-4f33-a02a-0e3461ad813a" />
+
+
 The method introduced here—**[nonlinear error mapping](https://github.com/RongLiu-Leo/dither/blob/ec4d5d91bbc54aec23990d19e3461c08359cb750/script.js#L222)**—modifies the quantization error *before* diffusion by applying a smooth, bounded nonlinear mapping. This transform preserves sign and overall energy while gently redistributing error magnitudes:
 
 - **Large errors are suppressed**, reducing harsh dot transitions and clumping.  
